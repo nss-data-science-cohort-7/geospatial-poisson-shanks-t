@@ -1,0 +1,60 @@
+```{r}
+library(tidyverse)
+library(glue)
+library(sf)
+library(dplyr)
+```
+
+```{r}
+census <- read_csv("./data/census.csv")
+burglaries <- read_csv("./data/burglaries_2023.csv")
+
+dc_shape_file <- st_read("./data/DC")
+```
+```{r}
+dc_crs <- st_crs(shape_file)
+```
+
+```{r}
+#glimpse(burglaries)
+```
+
+```{r}
+burglaries_geo <- st_as_sf(burglaries |> drop_na(latitude, longitude),
+         coords = c('longitude', 'latitude'),
+         crs = "NAD83")
+```
+
+```{r}
+#plot it own its own
+burglaries_geo |> 
+  ggplot() +
+  geom_sf()
+
+#plot with dc
+dc_shape_file |> 
+  ggplot() +
+  geom_sf() +
+  geom_sf()
+
+
+
+```
+
+
+```{r}
+?st_join()
+burglaries_dc <- st_join(dc_shape_file, burglaries_geo, join = st_within, left = FALSE)
+
+burglaries_dc |>
+  distinct(TRACTCE) |>
+  nrow()
+```
+
+```{r}
+dc_shape_file |>
+  ggplot() +
+  geom_sf() +
+  geom_sf(data = burglaries_dc,  size = 0.1)
+```
+
