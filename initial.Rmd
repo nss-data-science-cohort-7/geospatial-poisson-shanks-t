@@ -12,7 +12,7 @@ burglaries <- read_csv("./data/burglaries_2023.csv")
 dc_shape_file <- st_read("./data/DC")
 ```
 ```{r}
-dc_crs <- st_crs(shape_file)
+dc_crs <- st_crs(dc_shape_file)
 ```
 
 ```{r}
@@ -37,14 +37,12 @@ dc_shape_file |>
   geom_sf() +
   geom_sf()
 
-
-
 ```
 
 
 ```{r}
 ?st_join()
-burglaries_dc <- st_join(dc_shape_file, burglaries_geo, join = st_within, left = FALSE)
+burglaries_dc <- st_join(dc_shape_file, burglaries_geo, join = st_contains)
 
 burglaries_dc |>
   distinct(TRACTCE) |>
@@ -57,4 +55,45 @@ dc_shape_file |>
   geom_sf() +
   geom_sf(data = burglaries_dc,  size = 0.1)
 ```
+```{r}
+merged_df <- full_join(census, burglaries_dc, by = c("tract" = "TRACTCE")) |> view()
+```
+
+```{r}
+
+burgles_per_tract <- merged_df |>
+  group_by(tract) |>
+  distinct(incident_number) |>
+  summarize(num_burgles = n()) |>
+  arrange(desc(num_burgles))
+
+burgles_per_tract
+```
+
+```{r}
+str(merged_df)
+```
+
+
+```{r}
+burgles_per_tract_per_cap <- merged_df |>
+  filter(population != 0) |>
+  group_by(tract) |>
+  distinct(incident_number, .keep_all = TRUE) |>
+  summarise(
+    population = first(population),
+    median_income = first(median_income),
+    num_burgles = n(),
+    bpc = (n() / population) * 1000
+    ) |>
+  ungroup() |>
+  arrange(desc(bpc))
+
+burgles_per_tract_per_cap
+```
+
+
+
+
+
 
