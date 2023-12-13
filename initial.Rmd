@@ -91,7 +91,90 @@ burgles_per_tract_per_cap <- merged_df |>
 
 burgles_per_tract_per_cap
 ```
+```{r}
+burgles_lm <- lm(" median_income ~ bpc", data = burgles_per_tract_per_cap)
+```
 
+```{r}
+summary(burgles_lm)
+```
+
+```{r}
+pr_burgles_const <- glm('num_burgles ~ 1',
+               data = burgles_per_tract_per_cap,
+               family = poisson)
+summary(pr_burgles_const)
+```
+
+```{r}
+mu = exp(coef(pr_burgles_const))
+```
+
+```{r}
+x <- 0:5
+y <- dpois(x, lambda = mu)
+
+tibble(x = x, y = y) |> 
+  ggplot(aes(x = x, y = y)) + 
+  geom_col()
+```
+```{r}
+pr_burgles <- glm('num_burgles ~ median_income',
+               data = burgles_per_tract_per_cap,
+               family = poisson)
+```
+
+```{r}
+summary(pr_burgles)
+```
+```{r}
+summary(burgles_per_tract_per_cap$median_income)
+
+```
+
+```{r}
+filtered_burgles <- burgles_per_tract_per_cap |>
+  filter(median_income > 0)
+
+est_df <- tibble(
+  median_income = seq(from = min(filtered_burgles$median_income, na.rm = TRUE), 
+                          to = max(filtered_burgles$median_income, na.rm = TRUE), 
+                          length.out = 100)
+    )
+
+est_df <- est_df |> 
+  bind_cols(predict(pr_burgles, newdata = est_df, type = "response")) |> 
+  rename("Estimated Mean Number of Burgles" = "...2")
+            
+est_df |> 
+  ggplot(aes(x = median_income, y = `Estimated Mean Number of Burgles`)) +
+  geom_line() +
+  scale_x_continuous(labels = scales::comma)
+```
+```{r}
+pr_burgles <- glm('num_burgles ~ median_income',
+               data = filtered_burgles,
+               family = poisson,
+               offset = log(population))
+```
+
+```{r}
+est_df <- tibble(
+  median_income = seq(from = min(filtered_burgles$median_income, na.rm = TRUE), 
+                          to = max(filtered_burgles$median_income, na.rm = TRUE), 
+                          length.out = 100),
+  population = 1
+    )
+
+est_df <- est_df |> 
+  bind_cols(predict(pr_burgles, newdata = est_df, type = "response")) |> 
+  rename("Burglaries per tract per 1000 people" = "...3")
+
+filtered_burgles |> 
+  ggplot(aes(x = median_income, y = `bpc`)) +
+  geom_point() +
+  geom_line(data = est_df, aes(x = median_income, y = `Burglaries per tract per 1000 people`))
+```
 
 
 
