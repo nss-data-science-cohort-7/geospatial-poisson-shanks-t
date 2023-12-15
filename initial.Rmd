@@ -211,6 +211,13 @@ burgles_by_place |>
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 ```
+```{r}
+burgles_by_place |>
+  ggplot(aes(x = "", y = num_burgles, fill = location_description)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar(theta = "y") + 
+  theme_void()
+```
 
 
 
