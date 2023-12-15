@@ -26,12 +26,12 @@ burglaries_geo <- st_as_sf(burglaries |> drop_na(latitude, longitude),
 ```
 
 ```{r}
-#plot it own its own
+
 burglaries_geo |> 
   ggplot() +
   geom_sf()
 
-#plot with dc
+
 dc_shape_file |> 
   ggplot() +
   geom_sf() +
@@ -58,6 +58,12 @@ dc_shape_file |>
 ```{r}
 merged_df <- full_join(census, burglaries_dc, by = c("tract" = "TRACTCE")) |> view()
 ```
+```{r}
+merged_df |>
+  group_by(tract) |>
+  distinct(incident_number) |>
+  nrow()
+```
 
 ```{r}
 
@@ -67,7 +73,7 @@ burgles_per_tract <- merged_df |>
   summarize(num_burgles = n()) |>
   arrange(desc(num_burgles))
 
-burgles_per_tract
+burgles_per_tract 
 ```
 
 ```{r}
@@ -84,9 +90,7 @@ burgles_per_tract_per_cap <- merged_df |>
     population = first(population),
     median_income = first(median_income),
     num_burgles = n(),
-    bpc = (n() / population) * 1000
-    ) |>
-  ungroup() |>
+    bpc = (n() / population) * 1000) |>
   arrange(desc(bpc))
 
 burgles_per_tract_per_cap
@@ -120,7 +124,7 @@ tibble(x = x, y = y) |>
 ```
 ```{r}
 pr_burgles <- glm('num_burgles ~ median_income',
-               data = burgles_per_tract_per_cap,
+               data = filtered_burgles,
                family = poisson)
 ```
 
@@ -128,14 +132,14 @@ pr_burgles <- glm('num_burgles ~ median_income',
 summary(pr_burgles)
 ```
 ```{r}
-summary(burgles_per_tract_per_cap$median_income)
+filtered_burgles <- burgles_per_tract_per_cap |>
+  filter(median_income > 0)
+
+summary(filtered_burgles$median_income)
 
 ```
 
 ```{r}
-filtered_burgles <- burgles_per_tract_per_cap |>
-  filter(median_income > 0)
-
 est_df <- tibble(
   median_income = seq(from = min(filtered_burgles$median_income, na.rm = TRUE), 
                           to = max(filtered_burgles$median_income, na.rm = TRUE), 
@@ -156,6 +160,7 @@ pr_burgles <- glm('num_burgles ~ median_income',
                data = filtered_burgles,
                family = poisson,
                offset = log(population))
+summary(pr_burgles)
 ```
 
 ```{r}
@@ -163,7 +168,7 @@ est_df <- tibble(
   median_income = seq(from = min(filtered_burgles$median_income, na.rm = TRUE), 
                           to = max(filtered_burgles$median_income, na.rm = TRUE), 
                           length.out = 100),
-  population = 1
+  population = 1000
     )
 
 est_df <- est_df |> 
@@ -174,6 +179,37 @@ filtered_burgles |>
   ggplot(aes(x = median_income, y = `bpc`)) +
   geom_point() +
   geom_line(data = est_df, aes(x = median_income, y = `Burglaries per tract per 1000 people`))
+```
+```{r}
+burgles_by_place <- burglaries_dc |>
+  st_drop_geometry() |>
+  group_by(location_description) |>
+  distinct(incident_number, .keep_all = TRUE) |>
+  summarise(
+    num_burgles = n()
+  )
+  
+burgles_by_place |>
+  ggplot(aes(x = location_description, y = num_burgles)) +
+  geom_col() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+```{r}
+burgles_by_place <- burglaries_dc |>
+  st_drop_geometry() |>
+  group_by(location_description) |>
+  distinct(incident_number, .keep_all = TRUE) |>
+  summarise(
+    num_burgles = n()
+  )
+  
+burgles_by_place |>
+  ggplot(aes(x = location_description, y = num_burgles)) +
+  geom_col() +
+  scale_y_continuous(trans = 'log', labels = scales::comma) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
 ```
 
 
